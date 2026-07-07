@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>每日打卡看板</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --card: #161b22;
+        --border: #30363d;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --accent: #2ea043;
+        --empty: #21262d;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f6f8fa;
+          --card: #ffffff;
+          --border: #d0d7de;
+          --text: #1f2328;
+          --muted: #656d76;
+          --accent: #2ea043;
+          --empty: #ebedf0;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .card {
+        width: 100%;
+        max-width: 720px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 32px;
+      }
+      h1 { margin: 0 0 4px; font-size: 22px; }
+      .sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 32px;
+      }
+      .stat {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        text-align: center;
+      }
+      .stat .num { font-size: 30px; font-weight: 700; color: var(--accent); }
+      .stat .label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+      .grid-title { font-size: 14px; color: var(--muted); margin-bottom: 10px; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, 14px);
+        gap: 4px;
+      }
+      .cell {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        background: var(--empty);
+      }
+      .cell.on { background: var(--accent); }
+      .foot { margin-top: 28px; font-size: 12px; color: var(--muted); text-align: center; }
+      .foot a { color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>🟢 每日打卡看板</h1>
+      <div class="sub">由 GitHub Actions 每天自动打卡，push 后 Vercel 自动部署</div>
+
+      <div class="stats">
+        <div class="stat"><div class="num" id="total">–</div><div class="label">累计打卡</div></div>
+        <div class="stat"><div class="num" id="streak">–</div><div class="label">当前连续</div></div>
+        <div class="stat"><div class="num" id="last">–</div><div class="label">最近打卡</div></div>
+      </div>
+
+      <div class="grid-title">最近 90 天</div>
+      <div class="grid" id="grid"></div>
+
+      <div class="foot">数据源 <a href="./data.json">data.json</a> · 全自动运行，不依赖本地环境</div>
+    </div>
+
+    <script>
+      // 取北京时间当天日期
+      function shDate(d) {
+        return d.toLocaleDateString("en-CA", { timeZone: "Asia/Shanghai" });
+      }
+      fetch("./data.json")
+        .then((r) => r.json())
+        .then((data) => {
+          const set = new Set(data.checkins);
+          document.getElementById("total").textContent = data.checkins.length;
+
+          // 连续天数：从今天往前逐天累加，断档即止
+          let streak = 0;
+          const cur = new Date();
+          while (set.has(shDate(cur))) {
+            streak++;
+            cur.setDate(cur.getDate() - 1);
+          }
+          document.getElementById("streak").textContent = streak;
+
+          const last = data.checkins[data.checkins.length - 1] || "—";
+          document.getElementById("last").textContent = last;
+
+          // 渲染最近 90 天格子，打过卡的点亮
+          const grid = document.getElementById("grid");
+          const days = [];
+          const t = new Date();
+          for (let i = 89; i >= 0; i--) {
+            const d = new Date(t);
+            d.setDate(d.getDate() - i);
+            days.push(shDate(d));
+          }
+          for (const day of days) {
+            const cell = document.createElement("div");
+            cell.className = "cell" + (set.has(day) ? " on" : "");
+            cell.title = day;
+            grid.appendChild(cell);
+          }
+        });
+    </script>
+  </body>
+</html>

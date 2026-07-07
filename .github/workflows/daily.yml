@@ -1,0 +1,39 @@
+# 每日自动打卡：定时运行脚本更新 data.json，并以「你本人」的身份提交，
+# 从而在 GitHub 贡献图上刷出绿格子。完全跑在 GitHub 服务器上，不依赖任何本地环境。
+name: daily-checkin
+
+on:
+  schedule:
+    # 每天 UTC 01:00 触发 = 北京时间 09:00。GitHub cron 只认 UTC。
+    - cron: "0 1 * * *"
+  # 允许在 Actions 页面手动点按钮跑一次，方便测试。
+  workflow_dispatch:
+
+# 授予内置 GITHUB_TOKEN 写仓库的权限，否则无法 push。
+permissions:
+  contents: write
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 运行打卡脚本
+        run: node scripts/checkin.js
+
+      - name: 提交并推送
+        run: |
+          # 关键：提交身份必须用你 GitHub 账号验证过的邮箱，
+          # 这样即使是 Actions 机器人执行 push，绿格子也算在你名下。
+          git config user.name "Leo"
+          git config user.email "1656839861un@gmail.com"
+          git add -A
+          # 只有确实有改动时才提交，避免今天已打卡时产生空提交报错。
+          if git diff --cached --quiet; then
+            echo "今天已打卡，无改动，跳过提交。"
+          else
+            git commit -m "chore: $(TZ=Asia/Shanghai date +%Y-%m-%d) 每日打卡"
+            git push
+          fi
